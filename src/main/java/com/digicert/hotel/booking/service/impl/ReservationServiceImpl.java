@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,50 +60,40 @@ public class ReservationServiceImpl implements ReservationService {
 
         List<ReservationDTO> reservationList = new ArrayList<>();
 
-            for (ReservationDTO reservationDTO : reservationsList) {
+        for (ReservationDTO reservationDTO : reservationsList) {
+            Optional<ReservationEntity> byId = reservationRepository.findById(reservationDTO.getId());
 
-                Optional<ReservationEntity> byId = reservationRepository.findById(reservationDTO.getId());
-
-                try {
-
-                if(byId.isPresent()) {
-
+            try {
+                if (byId.isPresent()) {
                     ReservationDTO existingReservation = reservationEntityMapper.toDto(byId.get());
-                    throw new ReservationException("Reservation with id "+existingReservation.getId()+" already exists");
-
+                    throw new ReservationException("Reservation with id " + existingReservation.getId() + " already exists");
                 } else {
-
                     ReservationFieldValidator.validateReservationDTO(reservationDTO);
 
                     if (reservationDTO.getAgencyName().isBlank()) {
                         throw new IllegalArgumentException("Agency name is required");
                     }
+
                     ReservationEntity res = reservationEntityMapper.toEntity(reservationDTO);
                     res.setId(reservationDTO.getId());
+
+                    reservationEntityMapper.updateExistingEntity(reservationDTO, res);
+
                     reservationRepository.save(res);
                     reservationList.add(reservationDTO);
                 }
             } catch (ReservationException e) {
-
-            throw new ReservationException("Reservation with id "+byId.get().getId()+" already exists");
-
-            }catch (IllegalArgumentException e){
-
-                    throw new IllegalArgumentException(e.getMessage());
-
-            }catch (Exception e){
-
-                    throw new RuntimeException(e.getMessage());
-                }
-
-    }
-
-            log.info("Agency reservations created: " + reservationList);
-            return reservationList;
+                throw new ReservationException("Reservation with id " + byId.get().getId() + " already exists");
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage());
+            }
+        } return reservationList;
     }
 
 
-    public List<ReservationDTO> getAllReservations( ) {
+        public List<ReservationDTO> getAllReservations( ) {
 
       Sort sort = Sort.by(Sort.Order.asc("guestName"));
         return reservationRepository
